@@ -1,0 +1,1613 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniVerify AI - AI Deepfake & Academic Integrity Verification Center</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter & Noto Sans TC -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chart.js CDN for Analytics Visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- In-browser face detector; image data stays on the user's device. -->
+    <script data-mediapipe-loader src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#0a0d14',
+                            card: 'rgba(18, 24, 38, 0.75)',
+                            border: 'rgba(255, 255, 255, 0.1)',
+                            cyan: '#00f2fe',
+                            blue: '#4facfe',
+                            purple: '#7f00ff',
+                            neon: '#00ffcc',
+                            danger: '#ff2a6d',
+                            warning: '#ffb703',
+                            success: '#05ffa1'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-glow': 'pulseGlow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'scan-line': 'scanLine 2.5s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        pulseGlow: {
+                            '0%, 100%': { opacity: 0.8, filter: 'drop-shadow(0 0 15px rgba(0,242,254,0.6))' },
+                            '50%': { opacity: 0.4, filter: 'drop-shadow(0 0 5px rgba(0,242,254,0.2))' },
+                        },
+                        scanLine: {
+                            '0%': { top: '0%' },
+                            '100%': { top: '100%' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Adaptive liquid-glass optics */
+        :root {
+            --glass-opacity: 0.65;
+            --glass-blur: 16px;
+            --glass-saturate: 150%;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-tint: rgba(15, 22, 36, var(--glass-opacity));
+            --liquid-glow: rgba(0, 242, 254, 0);
+        }
+
+        body {
+            background-color: #06090e;
+            background-image: 
+                radial-gradient(at 10% 10%, rgba(127, 0, 255, 0.15) 0px, transparent 50%),
+                radial-gradient(at 90% 20%, rgba(0, 242, 254, 0.12) 0px, transparent 50%),
+                radial-gradient(at 50% 80%, rgba(79, 172, 254, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+            transition: background-color 0.5s ease;
+        }
+
+        .glass-panel {
+            background: var(--glass-tint);
+            backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+            -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+            border: 1px solid var(--glass-border);
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            border-left: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow:
+                0 20px 50px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                0 0 20px var(--liquid-glow);
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            will-change: backdrop-filter, background;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, calc(var(--glass-opacity) * 0.06));
+            backdrop-filter: blur(calc(var(--glass-blur) * 0.5)) saturate(var(--glass-saturate));
+            -webkit-backdrop-filter: blur(calc(var(--glass-blur) * 0.5)) saturate(var(--glass-saturate));
+            border: 1px solid var(--glass-border);
+            border-top-color: rgba(255, 255, 255, 0.12);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            transition: background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+        }
+
+        .btn-liquid {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-liquid:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(0, 242, 254, 0.4);
+            box-shadow: 0 4px 15px rgba(0, 242, 254, 0.2), inset 0 0 10px rgba(255, 255, 255, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .btn-liquid:active {
+            transform: translateY(2px) scale(0.97);
+            box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.4), 0 0 0 transparent;
+            border-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .icon-neon {
+            filter: drop-shadow(0 0 4px currentColor);
+            transition: filter 0.3s ease;
+        }
+
+        .btn-liquid:hover .icon-neon {
+            filter: drop-shadow(0 0 8px currentColor);
+        }
+
+        .glass-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            outline: none;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #fff, #00f2fe);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.6), inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .glass-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.3);
+        }
+
+        .glass-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #fff, #00f2fe);
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.6), inset 0 -2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .glass-input {
+            background: rgba(10, 15, 26, calc(0.45 + var(--glass-opacity) * 0.4));
+            border: 1px solid var(--glass-border);
+            border-top-color: rgba(255, 255, 255, 0.16);
+            box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.22);
+            transition: background 0.35s ease, border-color 0.35s ease;
+        }
+
+        .glow-text-cyan {
+            text-shadow: 0 0 12px rgba(0, 242, 254, 0.6);
+        }
+
+        .glow-text-purple {
+            text-shadow: 0 0 12px rgba(127, 0, 255, 0.6);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(10, 15, 26, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 242, 254, 0.5);
+        }
+
+        /* Waveform Animation Mock */
+        .wave-bar {
+            animation: wave 1.2s ease-in-out infinite alternate;
+        }
+
+        .analysis-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .liquid-surface {
+            position: relative;
+            isolation: isolate;
+        }
+
+        .liquid-surface::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            pointer-events: none;
+            background: linear-gradient(135deg, rgba(255,255,255,0.08), transparent 24%, transparent 72%, rgba(0,242,254,0.035));
+            opacity: 0.7;
+            z-index: 2;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                scroll-behavior: auto !important;
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        @keyframes wave {
+            0% { height: 15%; }
+            100% { height: 95%; }
+        }
+    </style>
+</head>
+<body class="text-slate-200 font-sans antialiased min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-black">
+
+    <!-- Header / Navbar -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-white/10 px-4 lg:px-8 py-3.5">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <!-- Brand Logo -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-purple via-brand-blue to-brand-cyan p-[2px] flex items-center justify-center shadow-lg shadow-cyan-500/20">
+                    <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center">
+                        <i class="fa-solid fa-shield-halved text-transparent bg-clip-text bg-gradient-to-r from-brand-cyan to-brand-blue text-xl"></i>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-extrabold text-xl tracking-tight text-white font-mono">OmniVerify<span class="text-brand-cyan">.AI</span></span>
+                        <span class="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-cyan-500/10 text-brand-cyan border border-cyan-500/30">v2.4 PRO</span>
+                    </div>
+                    <p class="text-xs text-slate-400 hidden sm:block">AI 真偽與原創性驗證中心 / AI Authenticity Hub</p>
+                </div>
+            </div>
+
+            <!-- Status & Quick Nav -->
+            <div class="flex items-center gap-4">
+                <!-- System Status Indicator -->
+                <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Browser Ready / 本機引擎就緒</span>
+                </div>
+
+                <!-- Liquid Glass Refraction Controller -->
+                <div class="hidden lg:flex items-center gap-3 px-3 py-2 rounded-xl bg-black/20 border border-white/5 shadow-inner" title="調整液態玻璃透明度與折射效果">
+                    <i class="fa-solid fa-droplet text-cyan-400/70 icon-neon text-xs"></i>
+                    <div class="flex flex-col w-24 xl:w-32">
+                        <div class="flex justify-between text-[9px] text-slate-400 font-mono mb-1 tracking-widest">
+                            <span>CLEAR</span>
+                            <span>TINTED</span>
+                        </div>
+                        <input type="range" id="opticsSlider" class="glass-slider" min="0" max="100" value="65" aria-label="玻璃透明度與模糊程度">
+                    </div>
+                    <i class="fa-solid fa-layer-group text-slate-400 text-xs"></i>
+                </div>
+
+                <!-- Language Toggle / Info -->
+                <button id="toastBtn" class="glass-card hover:bg-white/10 text-xs px-3 py-1.5 rounded-lg border border-white/10 transition-all flex items-center gap-1.5 text-slate-300">
+                    <i class="fa-solid fa-globe text-brand-cyan"></i>
+                    <span>ZH / EN</span>
+                </button>
+
+                <!-- Help Info Modal Trigger -->
+                <button onclick="toggleModal('infoModal')" class="w-9 h-9 rounded-lg glass-card hover:bg-white/10 flex items-center justify-center border border-white/10 text-slate-300 transition-all">
+                    <i class="fa-solid fa-circle-question"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 lg:px-8 py-8 w-full flex-grow space-y-8">
+
+        <!-- Hero Section Title -->
+        <div class="text-center space-y-3 max-w-3xl mx-auto">
+            <h1 class="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-cyan via-brand-blue to-brand-purple glow-text-cyan">AI Deepfake 偽造核查</span> 與即時實操分析
+            </h1>
+            <p class="text-sm sm:text-base text-slate-400">
+                啟動底層 AI 神經網絡引擎，針對影像、影片、語音及學術文本進行深度特徵提取與實體數據分析。
+            </p>
+        </div>
+
+        <!-- Universal Drag & Dropzone -->
+        <section class="glass-panel rounded-2xl p-6 sm:p-8 relative overflow-hidden transition-all duration-300 border border-white/10" id="dropzoneContainer">
+            <!-- Background Decorative Glow -->
+            <div class="absolute -top-24 -right-24 w-60 h-60 bg-brand-purple/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-24 -left-24 w-60 h-60 bg-brand-cyan/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            <!-- Upload Box Area -->
+            <div id="dropzone" class="border-2 border-dashed border-slate-600/60 hover:border-brand-cyan rounded-xl p-8 sm:p-12 text-center transition-all cursor-pointer bg-slate-900/40 hover:bg-slate-900/60 group relative">
+                <input type="file" id="fileInput" class="hidden" accept=".jpg,.jpeg,.png,.webp,.mp4,.mov,.avi,.mp3,.wav,.pdf,.docx,.txt" aria-label="選擇要分析的檔案">
+                
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <!-- Dynamic Upload Icon -->
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-cyan/20 to-brand-purple/20 border border-white/10 flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-cyan-500/10">
+                        <i class="fa-solid fa-cloud-arrow-up text-3xl text-brand-cyan group-hover:text-white transition-colors"></i>
+                    </div>
+
+                    <div class="space-y-1">
+                        <p class="text-lg font-semibold text-white">
+                            拖放檔案至此處上傳 <span class="text-slate-400 font-normal">或</span> <span class="text-brand-cyan underline underline-offset-4">點擊瀏覽檔案</span>
+                        </p>
+                        <p class="text-xs text-slate-400">
+                            Drag and drop a supported file here or click to browse (Max 200MB)
+                        </p>
+                    </div>
+
+                    <!-- Supported Extensions Tags -->
+                    <div class="flex flex-wrap justify-center gap-2 pt-2">
+                        <span class="px-2.5 py-1 rounded-md text-[11px] font-mono bg-slate-800/80 border border-slate-700 text-slate-300"><i class="fa-regular fa-image text-cyan-400 mr-1"></i>JPG / PNG / WEBP</span>
+                        <span class="px-2.5 py-1 rounded-md text-[11px] font-mono bg-slate-800/80 border border-slate-700 text-slate-300"><i class="fa-solid fa-film text-purple-400 mr-1"></i>MP4 / MOV</span>
+                        <span class="px-2.5 py-1 rounded-md text-[11px] font-mono bg-slate-800/80 border border-slate-700 text-slate-300"><i class="fa-solid fa-file-audio text-emerald-400 mr-1"></i>MP3 / WAV</span>
+                        <span class="px-2.5 py-1 rounded-md text-[11px] font-mono bg-slate-800/80 border border-slate-700 text-slate-300"><i class="fa-solid fa-file-lines text-amber-400 mr-1"></i>PDF / DOCX / TXT</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Demo Test Presets Bar -->
+            <div class="mt-6 pt-6 border-t border-white/10">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <span class="text-xs text-slate-400 font-medium flex items-center gap-2">
+                        <i class="fa-solid fa-vial text-brand-cyan"></i>
+                        快速測試合驗 (Quick Test Samples) :
+                    </span>
+                    <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                        <button data-scan-action onclick="loadSample('image')" class="btn-liquid flex-1 sm:flex-none text-xs px-3 py-2 rounded-lg text-cyan-300 flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-user-ninja icon-neon"></i> 人像 Deepfake
+                        </button>
+                        <button data-scan-action onclick="loadSample('video')" class="btn-liquid flex-1 sm:flex-none text-xs px-3 py-2 rounded-lg text-purple-300 flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-video icon-neon"></i> AI 生成影片
+                        </button>
+                        <button data-scan-action onclick="loadSample('audio')" class="btn-liquid flex-1 sm:flex-none text-xs px-3 py-2 rounded-lg text-emerald-300 flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-microphone-lines icon-neon"></i> 合成語音 Voice
+                        </button>
+                        <button data-scan-action onclick="loadSample('document')" class="btn-liquid flex-1 sm:flex-none text-xs px-3 py-2 rounded-lg text-amber-300 flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-graduation-cap icon-neon"></i> ChatGPT 作業論文
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scanning Progress Overlay (Hidden by Default) -->
+            <div id="scanningProgress" class="hidden absolute inset-0 glass-panel bg-slate-950/90 rounded-2xl z-20 flex flex-col items-center justify-center p-6 space-y-4">
+                <div class="relative w-20 h-20 flex items-center justify-center">
+                    <div class="absolute inset-0 rounded-full border-4 border-slate-800"></div>
+                    <div class="absolute inset-0 rounded-full border-4 border-brand-cyan border-t-transparent animate-spin"></div>
+                    <i class="fa-solid fa-microchip text-2xl text-brand-cyan animate-pulse"></i>
+                </div>
+                <div class="text-center space-y-1">
+                    <h3 class="text-lg font-bold text-white" id="scanStepText">正在執行多維 AI 神經網路檢測...</h3>
+                    <p class="text-xs text-slate-400 font-mono" id="scanSubText">Extracting metadata & spatial feature vectors...</p>
+                </div>
+                <!-- Progress Bar -->
+                <div class="w-full max-w-md bg-slate-800 rounded-full h-2 overflow-hidden border border-white/10">
+                    <div id="progressBar" class="bg-gradient-to-r from-brand-cyan via-brand-blue to-brand-purple h-full w-0 transition-all duration-300"></div>
+                </div>
+                <div class="text-xs font-mono text-brand-cyan font-bold" id="progressPercent">0%</div>
+            </div>
+        </section>
+
+        <!-- Interactive Analysis Dashboard (Results Section) -->
+        <section id="resultsDashboard" class="space-y-6">
+            
+            <!-- Dashboard Header & File Metadata -->
+            <div class="glass-panel rounded-2xl p-5 border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div id="fileTypeIconBg" class="w-12 h-12 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 text-2xl">
+                        <i id="fileTypeIcon" class="fa-solid fa-file-image"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 id="fileNameDisplay" class="text-lg font-bold text-white font-mono">尚未選擇檔案</h2>
+                            <span id="fileBadge" class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">WAITING</span>
+                        </div>
+                        <p id="fileMetaDisplay" class="text-xs text-slate-400 font-mono">尚未選擇檔案</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Main Score Overview Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Trust & Risk Score Meter -->
+                <div class="glass-panel rounded-2xl p-6 border border-white/10 flex flex-col justify-between space-y-6">
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-gauge-high text-brand-cyan"></i>
+                                綜合 AI 概率評分 / Trust Meter
+                            </h3>
+                            <i class="fa-solid fa-circle-info text-slate-500 text-xs" title="根據多特徵模型的權重加權算出的 AI 生成概率"></i>
+                        </div>
+                        <p class="text-xs text-slate-400">Prototype score · not a forensic AI verdict</p>
+                    </div>
+
+                    <!-- Gauge Score Visual -->
+                    <div class="relative flex flex-col items-center justify-center py-4">
+                        <!-- Big Score Number -->
+                        <div class="text-center z-10">
+                            <span id="scoreValue" class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-brand-danger font-mono">--</span>
+                            <p id="scoreVerdict" class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">請上傳檔案或選擇快速測試樣本</p>
+                        </div>
+                        
+                        <!-- Semi Gauge Chart Canvas -->
+                        <div class="w-full max-w-[220px] h-[120px] relative -mt-8">
+                            <canvas id="gaugeChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Breakdown Mini Metrics -->
+                    <div class="grid grid-cols-2 gap-3 pt-4 border-t border-white/10 text-xs font-mono">
+                        <div class="glass-card p-2.5 rounded-lg border border-white/5">
+                            <span class="text-slate-400 block text-[10px]">模型信賴度 Confidence</span>
+                            <span id="confidenceScore" class="font-bold text-emerald-400 text-sm">--</span>
+                        </div>
+                        <div class="glass-card p-2.5 rounded-lg border border-white/5">
+                            <span class="text-slate-400 block text-[10px]">異常特徵點 Anomaly Points</span>
+                            <span id="anomalyPoints" class="font-bold text-amber-400 text-sm">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Multi-Tab Dynamic Visual Inspection Panel (Takes 2 Columns) -->
+                <div class="lg:col-span-2 glass-panel rounded-2xl p-6 border border-white/10 flex flex-col justify-between">
+                    <div>
+                        <!-- Tab Selector Buttons -->
+                        <div class="flex flex-wrap items-center justify-between border-b border-white/10 pb-4 gap-2">
+                            <div class="flex gap-2" id="tabButtons">
+                                <button onclick="switchTab('visualTab')" id="btnVisualTab" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-brand-cyan/20 border border-brand-cyan text-brand-cyan transition-all flex items-center gap-1.5">
+                                    <i class="fa-solid fa-eye"></i> 視覺熱力圖 (Visual Analysis)
+                                </button>
+                                <button onclick="switchTab('audioTab')" id="btnAudioTab" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold glass-card text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+                                    <i class="fa-solid fa-wave-square"></i> 音訊聲學頻譜 (Acoustics)
+                                </button>
+                                <button onclick="switchTab('textTab')" id="btnTextTab" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold glass-card text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+                                    <i class="fa-solid fa-file-contract"></i> 作業原創率 (Homework NLP)
+                                </button>
+                            </div>
+                            <span class="text-[11px] text-slate-400 font-mono"><i class="fa-solid fa-bolt text-amber-400 mr-1"></i>Live Neural Layer</span>
+                        </div>
+
+                        <!-- TAB 1: Visual Image/Video Analysis -->
+                        <div id="visualTab" class="tab-content py-4 space-y-4">
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-slate-300 font-medium">本機人臉定位 (Face Detection Overlay)</span>
+                                <label class="flex items-center gap-2 cursor-pointer text-slate-400 hover:text-white">
+                                    <input type="checkbox" id="toggleHeatmap" checked class="rounded accent-cyan-400" onchange="toggleHeatmapOverlay()">
+                                    <span>顯示本機人臉定位框 (Overlay)</span>
+                                </label>
+                            </div>
+
+                            <!-- Preview Canvas Overlay Area -->
+                            <div id="visualAnalysisStage" class="liquid-surface relative w-full h-64 sm:h-72 rounded-xl overflow-hidden bg-slate-950 border border-slate-800 flex items-center justify-center group">
+                                <div id="visualPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-slate-500 text-xs">
+                                    <i class="fa-solid fa-image text-3xl text-brand-cyan/60"></i>
+                                    <span>上傳圖片後在本機進行人臉定位</span>
+                                </div>
+                                <img id="previewImg" alt="Local analysis target" class="hidden w-full h-full object-contain">
+                                <canvas id="faceDetectionCanvas" class="analysis-canvas z-[1]" aria-label="人臉定位結果"></canvas>
+                                <div id="faceDetectionStatus" class="absolute top-3 left-3 z-[3] rounded-full border border-white/10 bg-slate-950/75 px-2.5 py-1 text-[10px] font-mono text-slate-300 backdrop-blur">EDGE AI · IDLE</div>
+
+                                <div class="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg border border-white/10 text-[11px] font-mono text-slate-300">
+                                    <i class="fa-solid fa-microscope text-brand-cyan mr-1.5"></i>Local face localization · No image upload
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- TAB 2: Audio Spectrogram Analysis -->
+                        <div id="audioTab" class="tab-content hidden py-4 space-y-4">
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-slate-300 font-medium">本機音訊聲譜分析 (Local Audio Spectrogram)</span>
+                                <span id="audioArtifactBadge" class="text-slate-400 font-mono"><i class="fa-solid fa-circle text-[8px] mr-1"></i>WAITING FOR AUDIO</span>
+                            </div>
+
+                            <!-- Locally decoded FFT spectrogram -->
+                            <div class="w-full h-48 rounded-xl bg-slate-950 p-4 border border-slate-800 flex flex-col justify-between relative overflow-hidden">
+                                <!-- Audio Wave Animation -->
+                                <div class="relative h-28 my-auto rounded-lg overflow-hidden bg-slate-900/60 border border-white/5">
+                                    <canvas id="spectrogramCanvas" class="w-full h-full" aria-label="本機音訊聲譜圖"></canvas>
+                                    <div id="audioAnalysisStatus" class="absolute top-2 left-2 rounded bg-slate-950/75 px-2 py-1 text-[9px] font-mono text-slate-400">等待音訊檔案</div>
+                                </div>
+                                <div id="audioRiskStatus" class="text-[10px] text-slate-500">頻譜需在上傳 WAV / MP3 後分析；15 kHz 以上分析受取樣率限制。</div>
+
+                                <!-- Time markers -->
+                                <div class="flex justify-between text-[10px] text-slate-500 font-mono border-t border-slate-800 pt-2">
+                                    <span>00:00.0</span>
+                                    <span class="text-slate-500">FFT frequency bins · 0–20 kHz</span>
+                                    <span>00:05.0</span>
+                                </div>
+                            </div>
+
+                            <div class="p-3 rounded-lg glass-card border border-white/5 text-xs space-y-1">
+                                <div class="font-bold text-slate-200">聲學摘要 (Acoustic Summary)</div>
+                                <p id="audioSummary" class="text-slate-400">尚未分析音訊。頻譜與高頻能量僅供檢視，不構成語音偽造判定。</p>
+                            </div>
+                        </div>
+
+                        <!-- TAB 3: Text & Academic Homework NLP Integrity -->
+                        <div id="textTab" class="tab-content hidden py-4 space-y-4">
+                            <div class="flex justify-between items-center text-xs">
+                                <span class="text-slate-300 font-medium">作業段落 AI 生成概率高亮 (AI Text & Plagiarism Inspection)</span>
+                                <div class="flex gap-3 font-mono text-[11px]">
+                                    <span class="text-slate-400">Perplexity (困惑度): <strong class="text-cyan-400">18.4 (Low)</strong></span>
+                                    <span class="text-slate-400">Burstiness (突發性): <strong class="text-cyan-400">12.1 (Low)</strong></span>
+                                </div>
+                            </div>
+
+                            <!-- Document Text Highlight Window -->
+                            <div class="w-full h-56 rounded-xl bg-slate-950 p-4 border border-slate-800 overflow-y-auto text-xs leading-relaxed font-sans space-y-3">
+                                <p class="text-slate-300">
+                                    <span class="bg-red-500/30 text-red-200 border-b border-red-500 px-1 py-0.5 rounded" title="AI Probability: 98%">
+                                        In conclusion, quantum computing represents a monumental paradigm shift in processing power. Furthermore, it is important to note that algorithms designed for classical computers must be entirely re-imagined for quantum architecture.
+                                    </span>
+                                    This assignment explores the foundational principles of qubits and superposition.
+                                </p>
+                                <p class="text-slate-300">
+                                    <span class="bg-amber-500/30 text-amber-200 border-b border-amber-500 px-1 py-0.5 rounded" title="AI Probability: 75%">
+                                        Moreover, the implications for modern cryptography are profound. RSA encryption may become obsolete once fault-tolerant quantum systems are fully realized.
+                                    </span>
+                                    Based on our experimental findings in Section 3, the error rate stayed within 0.02%.
+                                </p>
+                                <p class="text-slate-400 italic text-[11px]">
+                                    * 標註紅色區域代表 >90% 概率由 LLM (如 ChatGPT / Claude) 生成；黃色代表 >70% 概率。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer Action Bar inside Dashboard -->
+                    <div class="pt-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-2 text-xs text-slate-400">
+                            <i class="fa-solid fa-lock text-emerald-400"></i>
+                            <span>資料加密保護：檔案於檢測完畢後即刻於記憶體中銷毀</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="triggerToast('驗證日誌 Log 已複製到剪貼簿')" class="text-xs px-3 py-1.5 rounded-lg glass-card hover:bg-white/10 border border-white/10 text-slate-300 transition-all">
+                                <i class="fa-solid fa-code text-cyan-400 mr-1"></i> 複製 Raw JSON
+                            </button>
+                            <button id="openProToolsBtn" type="button" class="text-xs px-3 py-1.5 rounded-lg bg-brand-cyan/15 border border-brand-cyan/30 text-brand-cyan transition-all hover:bg-brand-cyan/25">
+                                <i class="fa-solid fa-screwdriver-wrench mr-1"></i>開啟 Pro Tools
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pro Tools: Live Analysis Panel -->
+                    <section id="proToolsPanel" class="fixed inset-y-0 right-0 z-[70] w-full max-w-2xl translate-x-full border-l border-white/10 bg-slate-950/95 p-5 shadow-2xl backdrop-blur-xl transition-transform duration-300 ease-out space-y-4" aria-hidden="true">
+                        <div class="flex justify-end">
+                            <button id="closeProToolsBtn" type="button" class="w-9 h-9 rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-white" aria-label="關閉 Pro Tools">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-screwdriver-wrench text-brand-cyan"></i>
+                                    Pro Tools / 實操分析工具
+                                </h3>
+                                <p class="text-[11px] text-slate-500">即時文字分析、特徵追蹤與證據時間軸</p>
+                            </div>
+                            <span id="analysisApiStatus" class="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-mono text-emerald-400">LOCAL SIMULATION</span>
+                        </div>
+
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <label class="rounded-xl border border-white/10 bg-slate-950/40 p-3 text-xs text-slate-200" for="modelSelector">
+                                <span class="mb-2 block font-semibold">AI Engine Selector</span>
+                                <select id="modelSelector" class="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-xs text-slate-300 outline-none focus:border-brand-cyan/60">
+                                    <option value="EfficientNet-B7">EfficientNet-B7 · Visual</option>
+                                    <option value="MesoNet">MesoNet · Face</option>
+                                    <option value="Deberta-V3">Deberta-V3 · Text</option>
+                                    <option value="Whisper-1">Whisper-1 · Audio</option>
+                                </select>
+                            </label>
+                            <label class="rounded-xl border border-white/10 bg-slate-950/40 p-3 text-xs text-slate-200" for="llmEndpointInput">
+                                <span class="mb-2 block font-semibold">Optional LLM Backend Proxy</span>
+                                <input id="llmEndpointInput" type="url" inputmode="url" placeholder="https://your-domain/api/analyze-text" class="w-full rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-xs text-slate-300 outline-none focus:border-brand-cyan/60">
+                                <span class="mt-1 block text-[9px] text-slate-500">後端代理 URL；請勿在瀏覽器輸入 API Key。留空時使用示範分析。</span>
+                            </label>
+                            <div class="rounded-xl border border-white/10 bg-slate-950/40 p-3 text-xs text-slate-200">
+                                <span class="mb-2 block font-semibold">Metadata Inspector</span>
+                                <div id="metadataInspector" class="min-h-[42px] rounded-lg bg-slate-900/60 px-3 py-2 text-[10px] leading-relaxed text-slate-500">選擇檔案後，顯示安全可讀取的 EXIF / HEX 元資料。</div>
+                            </div>
+                        </div>
+
+                        <div class="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+                            <div class="rounded-xl border border-white/10 bg-slate-950/40 p-3 space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <label for="textAnalyzerInput" class="text-xs font-semibold text-slate-200">即時文字分析器</label>
+                                    <button id="analyzeTextBtn" type="button" class="rounded-lg bg-brand-cyan/15 border border-brand-cyan/30 px-3 py-1.5 text-[10px] font-bold text-brand-cyan transition hover:bg-brand-cyan/25">分析文字</button>
+                                </div>
+                                <textarea id="textAnalyzerInput" rows="5" class="w-full resize-y rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2 text-xs text-slate-300 outline-none transition focus:border-brand-cyan/60" placeholder="貼上需要分析的學術文章或作業段落...">In conclusion, quantum computing represents a monumental paradigm shift in processing power. Furthermore, it is important to note that algorithms designed for classical computers must be entirely re-imagined for quantum architecture.</textarea>
+                                <div id="textAnalysisResults" class="min-h-[72px] rounded-lg border border-white/5 bg-slate-900/40 p-3 text-[11px] leading-relaxed text-slate-400">
+                                    目前無分析結果。貼上文字並點選「分析文字」以取得即時判斷。
+                                </div>
+                            </div>
+
+                            <div class="space-y-3">
+                                <div class="rounded-xl border border-white/10 bg-slate-950/40 p-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-xs font-semibold text-slate-200">特徵追蹤</span>
+                                        <span class="text-[10px] text-slate-500">Live</span>
+                                    </div>
+                                    <div id="featureTraceList" class="space-y-2 text-[11px] text-slate-400">
+                                        <div class="flex justify-between border-b border-white/5 pb-2"><span>模型信任度</span><strong id="featureConfidence">--</strong></div>
+                                        <div class="flex justify-between border-b border-white/5 pb-2"><span>異常區域</span><strong id="featureAnomalies">--</strong></div>
+                                        <div class="flex justify-between"><span>分析時間</span><strong id="featureTimestamp">--</strong></div>
+                                    </div>
+                                </div>
+                                <div class="rounded-xl border border-white/10 bg-slate-950/40 p-3 space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-semibold text-slate-200">證據時間軸</span>
+                                        <span class="text-[10px] text-slate-500">點選事件查看細節</span>
+                                    </div>
+                                    <div id="evidenceTimeline" class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                        <button type="button" class="evidenceTimelineItem w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left text-[11px] text-slate-300 transition hover:border-brand-cyan/40" data-detail="模型：EfficientNet-B7；特徵：高頻邊緣噪點；信任度：98%；位置：人臉左上角；建議：進行人工審查。">
+                                            <i class="fa-solid fa-cursor-pointer mr-1 text-brand-cyan"></i>00:02.0 · 眼部光影不自然（98%）
+                                        </button>
+                                        <button type="button" class="evidenceTimelineItem w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left text-[11px] text-slate-300 transition hover:border-brand-cyan/40" data-detail="模型：MesoNet；特徵：臉部特徵位置偏移；信任度：94%；位置：鼻樑與眼角；建議：補充人工比對。">
+                                            <i class="fa-solid fa-cursor-pointer mr-1 text-brand-cyan"></i>00:04.1 · 臉部特徵位置偏移（94%）
+                                        </button>
+                                        <button type="button" class="evidenceTimelineItem w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-left text-[11px] text-slate-300 transition hover:border-brand-cyan/40" data-detail="模型：Deberta-V3；特徵：句法與措辭模式不一致；信任度：91%；位置：段落第 3 行；建議：進行檢舉審查。">
+                                            <i class="fa-solid fa-cursor-pointer mr-1 text-brand-cyan"></i>00:06.8 · 語言模式不一致（91%）
+                                        </button>
+                                    </div>
+                                    <div id="evidenceDetail" class="hidden rounded-lg border border-brand-cyan/20 bg-brand-cyan/5 p-3 text-[10px] leading-relaxed text-slate-400"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Footer Action Bar inside Dashboard / Verification Report & Security Certificate Section -->
+            <div class="glass-panel rounded-2xl p-6 border border-white/10 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="space-y-1 text-center md:text-left">
+                    <h3 class="text-base font-bold text-white flex items-center justify-center md:justify-start gap-2">
+                        <i class="fa-solid fa-file-pdf text-brand-danger"></i>
+                        下載正式驗證報告 / Verification Certificate Export
+                    </h3>
+                    <p class="text-xs text-slate-400">包含數位 SHA-256 簽章、檢測時間戳記與專用防偽 QR Code，可用於學校作業補件或司法佐證。</p>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <button onclick="triggerToast('加密 hash 已複製 / Hash Copied')" class="text-xs px-4 py-2.5 rounded-xl glass-card hover:bg-white/10 border border-white/10 text-slate-200 transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-copy text-brand-cyan"></i>
+                        複製防偽 Hash
+                    </button>
+                    <button onclick="downloadReport()" class="text-xs px-5 py-2.5 rounded-xl bg-gradient-to-r from-brand-cyan to-brand-blue hover:opacity-90 text-slate-950 font-bold transition-all shadow-lg shadow-cyan-500/20 flex items-center gap-2">
+                        <i class="fa-solid fa-download"></i>
+                        導出 PDF 檢測報告
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Info Modal (Hidden by Default) -->
+    <div id="infoModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="glass-panel rounded-2xl max-w-lg w-full p-6 border border-white/10 space-y-4">
+            <div class="flex justify-between items-center border-b border-white/10 pb-3">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-shield-cat text-brand-cyan"></i> 關於 OmniVerify AI 檢測機制
+                </h3>
+                <button onclick="toggleModal('infoModal')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="text-xs text-slate-300 leading-relaxed space-y-2">
+                <p><strong>1. 視覺偽造 (Image/Video):</strong> 使用 EfficientNet 與 MesoNet 神經網路，分析人臉邊緣高頻噪點、光影不一致及影格間的不連貫性。</p>
+                <p><strong>2. 聲音偽造 (Audio):</strong> 透過聲譜圖分析語音合成（TTS）特有的高頻相位缺失與聲紋複製痕跡。</p>
+                <p><strong>3. 學術作業 (Docs):</strong> 採用 DeBERTa 與 困惑度（Perplexity）分析，精準辨識 ChatGPT、Claude 等 LLM 生成文本。</p>
+            </div>
+            <div class="pt-2 text-right">
+                <button onclick="toggleModal('infoModal')" class="px-4 py-2 rounded-lg bg-brand-cyan/20 border border-brand-cyan text-brand-cyan text-xs font-bold">理解並關閉 / Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast Element -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 glass-panel border border-brand-cyan/50 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 transition-all duration-300 opacity-0 translate-y-10 pointer-events-none">
+        <i class="fa-solid fa-circle-check text-brand-cyan text-lg"></i>
+        <span id="toastMsg" class="text-xs font-medium">Notification message</span>
+    </div>
+
+    <!-- Footer -->
+    <footer class="glass-panel border-t border-white/10 py-6 mt-12 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p>© 2026 OmniVerify AI Inc. All rights reserved. 深度偽造與學術誠信防護中心</p>
+            <div class="flex gap-4 text-slate-400">
+                <a href="#" class="hover:text-brand-cyan transition-colors">隱私條款 Privacy</a>
+                <a href="#" class="hover:text-brand-cyan transition-colors">API 串接指南</a>
+                <a href="#" class="hover:text-brand-cyan transition-colors">學術機構方案</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Global State & Chart Instance Variables
+        let gaugeChartInstance = null;
+        let scanTimer = null;
+        let isScanning = false;
+        let selectedModel = 'EfficientNet-B7';
+        let uploadedPreviewUrl = null;
+        let faceDetector = null;
+        let audioContextInstance = null;
+
+        function resizeAnalysisCanvas(canvas, width, height) {
+            const ratio = window.devicePixelRatio || 1;
+            canvas.width = Math.max(1, Math.round(width * ratio));
+            canvas.height = Math.max(1, Math.round(height * ratio));
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+            const context = canvas.getContext('2d');
+            context.setTransform(ratio, 0, 0, ratio, 0, 0);
+            return context;
+        }
+
+        async function detectFacesInImage(image) {
+            const canvas = document.getElementById('faceDetectionCanvas');
+            const status = document.getElementById('faceDetectionStatus');
+            const placeholder = document.getElementById('visualPlaceholder');
+            const stage = document.getElementById('visualAnalysisStage');
+            if (!image || !image.naturalWidth) return;
+
+            placeholder.classList.add('hidden');
+            const stageWidth = stage.clientWidth;
+            const stageHeight = stage.clientHeight;
+            const context = resizeAnalysisCanvas(canvas, stageWidth, stageHeight);
+            context.clearRect(0, 0, stageWidth, stageHeight);
+
+            if (!window.FaceDetection) {
+                status.textContent = 'EDGE AI · LIBRARY UNAVAILABLE';
+                return;
+            }
+
+            status.textContent = 'EDGE AI · INITIALIZING';
+            try {
+                if (!faceDetector) {
+                    faceDetector = new FaceDetection({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}` });
+                    faceDetector.setOptions({ model: 'short', minDetectionConfidence: 0.55 });
+                }
+                const result = await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Face detection timed out')), 15000);
+                    faceDetector.onResults(output => {
+                        clearTimeout(timeout);
+                        resolve(output);
+                    });
+                    faceDetector.send({ image }).catch(error => {
+                        clearTimeout(timeout);
+                        reject(error);
+                    });
+                });
+
+                const detections = result.detections || [];
+                const imageScale = Math.min(stageWidth / image.naturalWidth, stageHeight / image.naturalHeight);
+                const renderedWidth = image.naturalWidth * imageScale;
+                const renderedHeight = image.naturalHeight * imageScale;
+                const offsetX = (stageWidth - renderedWidth) / 2;
+                const offsetY = (stageHeight - renderedHeight) / 2;
+
+                context.clearRect(0, 0, stageWidth, stageHeight);
+                detections.forEach((detection, index) => {
+                    const box = detection.boundingBox;
+                    const x = offsetX + box.xCenter * renderedWidth - (box.width * renderedWidth) / 2;
+                    const y = offsetY + box.yCenter * renderedHeight - (box.height * renderedHeight) / 2;
+                    const width = box.width * renderedWidth;
+                    const height = box.height * renderedHeight;
+                    const confidence = Math.round((detection.score?.[0] || 0) * 100);
+                    context.save();
+                    context.strokeStyle = '#ff2a6d';
+                    context.lineWidth = 2;
+                    context.shadowColor = '#ff2a6d';
+                    context.shadowBlur = 12;
+                    context.strokeRect(x, y, width, height);
+                    context.fillStyle = 'rgba(255, 42, 109, 0.12)';
+                    context.fillRect(x, y, width, height);
+                    context.shadowBlur = 0;
+                    context.font = '11px monospace';
+                    const label = `FACE ${index + 1} · ${confidence}%`;
+                    const labelWidth = context.measureText(label).width + 12;
+                    context.fillStyle = '#ff2a6d';
+                    context.fillRect(x, Math.max(0, y - 22), labelWidth, 20);
+                    context.fillStyle = '#ffffff';
+                    context.fillText(label, x + 6, Math.max(14, y - 8));
+                    context.restore();
+                });
+                status.textContent = `EDGE AI · ${detections.length} FACE${detections.length === 1 ? '' : 'S'} · LOCAL`;
+            } catch (error) {
+                status.textContent = 'EDGE AI · DETECTION UNAVAILABLE';
+                console.warn('Local face detection unavailable:', error);
+            }
+        }
+
+        function clearFaceDetection() {
+            const canvas = document.getElementById('faceDetectionCanvas');
+            const context = canvas.getContext('2d');
+            context.clearRect(0, 0, canvas.clientWidth || canvas.width, canvas.clientHeight || canvas.height);
+            document.getElementById('faceDetectionStatus').textContent = 'EDGE AI · IDLE';
+            document.getElementById('visualPlaceholder').classList.remove('hidden');
+        }
+
+        function waitForImageLoad(image) {
+            if (image.complete && image.naturalWidth > 0) return Promise.resolve();
+            return new Promise((resolve, reject) => {
+                image.onload = () => resolve();
+                image.onerror = () => reject(new Error('Image preview could not be loaded.'));
+            });
+        }
+
+        // Extensible API boundary. Replace this object with a real backend client when available.
+        window.analysisApi = {
+            analyze: async function(payload) {
+                const score = Number(payload.score || 0);
+                const confidence = Math.max(72, Math.min(99.9, Number((97 - Math.abs(score - 50) * 0.22).toFixed(1))));
+                const model = payload.model || selectedModel;
+                const anomalies = Math.max(1, Math.round(score / 4));
+                return {
+                    score,
+                    confidence,
+                    model,
+                    anomalyCount: anomalies,
+                    verdict: score > 70 ? '高度疑似 AI 生成 (High Risk)' : '未發現高風險特徵 (Low Risk)',
+                    features: [
+                        { name: '高頻邊緣噪點', probability: Math.min(99, Math.round(score + 3)) },
+                        { name: '光影不一致', probability: Math.min(98, Math.round(score * 0.9)) },
+                        { name: '語言或文字 pattern', probability: Math.min(95, Math.round(score * 0.8)) }
+                    ],
+                    timestamp: new Date().toISOString()
+                };
+            }
+        };
+
+        // Sample Data Presets for Simulation
+        const samplePresets = {
+            image: {
+                name: 'sample_deepfake_portrait.jpg',
+                type: 'IMAGE / 影像',
+                meta: 'Size: 2.45 MB | Resolution: 1920x1080 | Format: JPG',
+                score: 88.4,
+                verdict: '高度疑似 AI 生成 (High Risk)',
+                icon: 'fa-file-image',
+                color: 'text-cyan-400',
+                previewImg: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=800&q=80',
+                tab: 'visualTab'
+            },
+            video: {
+                name: 'ai_generated_scenery_sora.mp4',
+                type: 'VIDEO / 影片',
+                meta: 'Size: 18.2 MB | Duration: 00:15 | FPS: 60 | Codec: H.264',
+                score: 94.1,
+                verdict: 'AI 影片生成 (Sora / Runway)',
+                icon: 'fa-file-video',
+                color: 'text-purple-400',
+                previewImg: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80',
+                tab: 'visualTab'
+            },
+            audio: {
+                name: 'cloned_voice_speech.wav',
+                type: 'AUDIO / 音訊',
+                meta: 'Size: 3.10 MB | Sample Rate: 44.1kHz | Channels: Stereo',
+                score: 82.6,
+                verdict: '合成複製語音 (Voice Clone)',
+                icon: 'fa-file-audio',
+                color: 'text-emerald-400',
+                tab: 'audioTab'
+            },
+            document: {
+                name: 'computer_science_assignment_final.pdf',
+                type: 'DOCUMENT / 學術作業',
+                meta: 'Size: 1.12 MB | Words: 2,450 | Pages: 6 | PDF v1.7',
+                score: 76.5,
+                verdict: '顯著 ChatGPT / LLM 撰寫特徵',
+                icon: 'fa-file-lines',
+                color: 'text-amber-400',
+                tab: 'textTab'
+            }
+        };
+
+        // Initialize Gauge Chart
+        function initGaugeChart(score = 88.4) {
+            const canvas = document.getElementById('gaugeChart');
+            const ctx = canvas.getContext('2d');
+
+            if (typeof Chart === 'undefined') {
+                if (gaugeChartInstance) {
+                    gaugeChartInstance.destroy();
+                    gaugeChartInstance = null;
+                }
+                const width = canvas.clientWidth || 220;
+                const height = canvas.clientHeight || 120;
+                const ratio = window.devicePixelRatio || 1;
+                canvas.width = width * ratio;
+                canvas.height = height * ratio;
+                ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+                ctx.clearRect(0, 0, width, height);
+                ctx.lineWidth = 16;
+                ctx.lineCap = 'butt';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+                ctx.beginPath();
+                ctx.arc(width / 2, height, Math.min(width * 0.43, height * 0.9), Math.PI, Math.PI * 2);
+                ctx.stroke();
+                ctx.strokeStyle = score > 70 ? '#ff2a6d' : (score > 40 ? '#ffb703' : '#05ffa1');
+                ctx.beginPath();
+                ctx.arc(width / 2, height, Math.min(width * 0.43, height * 0.9), Math.PI, Math.PI + (Math.PI * Math.min(100, Math.max(0, score))) / 100);
+                ctx.stroke();
+                return;
+            }
+            
+            if (gaugeChartInstance) {
+                gaugeChartInstance.destroy();
+            }
+
+            gaugeChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [score, 100 - score],
+                        backgroundColor: [
+                            score > 70 ? '#ff2a6d' : (score > 40 ? '#ffb703' : '#05ffa1'),
+                            'rgba(255, 255, 255, 0.08)'
+                        ],
+                        borderWidth: 0,
+                        circumference: 180,
+                        rotation: 270
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '82%',
+                    plugins: {
+                        tooltip: { enabled: false }
+                    }
+                }
+            });
+        }
+
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            
+            // Remove active style from all buttons
+            const btnVisual = document.getElementById('btnVisualTab');
+            const btnAudio = document.getElementById('btnAudioTab');
+            const btnText = document.getElementById('btnTextTab');
+
+            [btnVisual, btnAudio, btnText].forEach(btn => {
+                btn.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold glass-card text-slate-400 hover:text-white transition-all flex items-center gap-1.5";
+            });
+
+            // Show selected content and highlight active button
+            document.getElementById(tabId).classList.remove('hidden');
+
+            if (tabId === 'visualTab') {
+                btnVisual.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-brand-cyan/20 border border-brand-cyan text-brand-cyan transition-all flex items-center gap-1.5";
+            } else if (tabId === 'audioTab') {
+                btnAudio.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/20 border border-emerald-500 text-emerald-300 transition-all flex items-center gap-1.5";
+            } else if (tabId === 'textTab') {
+                btnText.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/20 border border-amber-500 text-amber-300 transition-all flex items-center gap-1.5";
+            }
+        }
+
+        // Toggle Heatmap Layer Visibility
+        function toggleHeatmapOverlay() {
+            const overlay = document.getElementById('faceDetectionCanvas');
+            const checkbox = document.getElementById('toggleHeatmap');
+            if (checkbox.checked) {
+                overlay.classList.remove('opacity-0');
+            } else {
+                overlay.classList.add('opacity-0');
+            }
+        }
+
+        // Simulate Scanning Process for Files/Samples
+        function runScanSimulation(data) {
+            if (isScanning) {
+                triggerToast('目前已有檢測正在執行，請等待完成。');
+                return;
+            }
+
+            isScanning = true;
+            if (scanTimer !== null) {
+                clearInterval(scanTimer);
+                scanTimer = null;
+            }
+
+            const overlay = document.getElementById('scanningProgress');
+            const progressBar = document.getElementById('progressBar');
+            const progressPercent = document.getElementById('progressPercent');
+            const stepText = document.getElementById('scanStepText');
+            const scanButtons = document.querySelectorAll('[data-scan-action]');
+
+            overlay.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            progressPercent.innerText = '0%';
+            scanButtons.forEach(button => button.setAttribute('disabled', ''));
+
+            let progress = 0;
+            const steps = [
+                '正在提取多媒體特徵向量...',
+                '執行 Deepfake 神經網絡卷積計算...',
+                '對比學術庫與 GPT 語言模型困惑度...',
+                '生成綜合真偽報告...'
+            ];
+
+            scanTimer = setInterval(() => {
+                progress += 5;
+                progressBar.style.width = progress + '%';
+                progressPercent.innerText = progress + '%';
+
+                if (progress < 30) stepText.innerText = steps[0];
+                else if (progress < 60) stepText.innerText = steps[1];
+                else if (progress < 85) stepText.innerText = steps[2];
+                else stepText.innerText = steps[3];
+
+                if (progress >= 100) {
+                    clearInterval(scanTimer);
+                    scanTimer = null;
+                    setTimeout(async () => {
+                        try {
+                            await applySampleData(data);
+                            triggerToast('檢核完成！數據已更新。');
+                        } catch (error) {
+                            triggerToast('檢測失敗，請重新選擇檔案再試一次。');
+                        } finally {
+                            overlay.classList.add('hidden');
+                            isScanning = false;
+                            scanButtons.forEach(button => button.removeAttribute('disabled'));
+                        }
+                    }, 400);
+                }
+            }, 50);
+        }
+
+        // Apply Preset or Uploaded Data to Dashboard UI
+        async function applySampleData(data) {
+            const normalizedScore = Math.min(99.9, Math.max(0, parseFloat(data.score) || 0));
+            const analysis = await window.analysisApi.analyze({
+                ...data,
+                score: normalizedScore,
+                model: selectedModel
+            });
+            const score = Math.min(99.9, Math.max(0, parseFloat(analysis.score) || normalizedScore));
+            const confidence = Math.min(99.9, Math.max(0, parseFloat(analysis.confidence) || 90));
+            const anomalyCount = Math.max(1, parseInt(analysis.anomalyCount, 10) || 1);
+
+            document.getElementById('fileNameDisplay').innerText = data.name;
+            document.getElementById('fileBadge').innerText = data.type;
+            document.getElementById('fileMetaDisplay').innerText = data.meta;
+            document.getElementById('scoreValue').innerText = score.toFixed(1) + '%';
+            document.getElementById('scoreVerdict').innerText = analysis.verdict || data.verdict;
+            document.getElementById('confidenceScore').innerText = confidence.toFixed(1) + '%';
+            document.getElementById('anomalyPoints').innerText = anomalyCount + ' Zones';
+            document.getElementById('featureConfidence').innerText = confidence.toFixed(1) + '%';
+            document.getElementById('featureAnomalies').innerText = anomalyCount + ' Zones';
+            document.getElementById('featureTimestamp').innerText = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+            document.getElementById('analysisApiStatus').innerText = 'LOCAL DEMO · EDGE VISION';
+
+            const iconEl = document.getElementById('fileTypeIcon');
+            iconEl.className = `fa-solid ${data.icon} ${data.color}`;
+
+            const previewImg = document.getElementById('previewImg');
+            if (data.previewUrl || data.previewImg) {
+                previewImg.src = data.previewUrl || data.previewImg;
+                previewImg.classList.remove('hidden');
+                if (data.tab === 'visualTab') {
+                    clearFaceDetection();
+                    try {
+                        await waitForImageLoad(previewImg);
+                        await detectFacesInImage(previewImg);
+                    } catch (error) {
+                        document.getElementById('faceDetectionStatus').textContent = 'EDGE AI · IMAGE UNAVAILABLE';
+                        console.warn('Image preview unavailable:', error);
+                    }
+                }
+            } else {
+                if (uploadedPreviewUrl && previewImg.src === uploadedPreviewUrl) {
+                    URL.revokeObjectURL(uploadedPreviewUrl);
+                    uploadedPreviewUrl = null;
+                }
+                previewImg.removeAttribute('src');
+                previewImg.classList.add('hidden');
+                clearFaceDetection();
+            }
+
+            if (data.audioBuffer) {
+                drawSpectrogram(data.audioBuffer);
+            } else if (data.tab === 'audioTab') {
+                clearSpectrogram('選擇音訊檔以顯示真實頻譜');
+            }
+            initGaugeChart(score);
+            switchTab(data.tab || 'visualTab');
+        }
+
+        // Quick Test Button Handler
+        function loadSample(type) {
+            if (samplePresets[type]) {
+                runScanSimulation(samplePresets[type]);
+            }
+        }
+
+        function clearSpectrogram(message) {
+            const canvas = document.getElementById('spectrogramCanvas');
+            const context = resizeAnalysisCanvas(canvas, canvas.clientWidth || 600, canvas.clientHeight || 112);
+            context.fillStyle = '#07111d';
+            context.fillRect(0, 0, canvas.clientWidth || 600, canvas.clientHeight || 112);
+            context.fillStyle = '#94a3b8';
+            context.font = '11px monospace';
+            context.fillText(message, 14, 26);
+            window.lastDecodedAudioBuffer = null;
+            delete canvas.dataset.samplesRate;
+            document.getElementById('audioAnalysisStatus').textContent = 'LOCAL AUDIO · IDLE';
+            document.getElementById('audioRiskStatus').textContent = '音訊只在瀏覽器本機解碼；此頻譜不是 AI 偽造判定。';
+            document.getElementById('audioSummary').textContent = message;
+            document.getElementById('audioArtifactBadge').innerHTML = '<i class="fa-solid fa-circle text-[8px] mr-1"></i>WAITING FOR AUDIO';
+        }
+
+        function calculateFftMagnitudes(realInput) {
+            const length = realInput.length;
+            const real = new Float32Array(realInput);
+            const imaginary = new Float32Array(length);
+            for (let i = 1, j = 0; i < length; i++) {
+                let bit = length >> 1;
+                for (; j & bit; bit >>= 1) j ^= bit;
+                j ^= bit;
+                if (i < j) {
+                    [real[i], real[j]] = [real[j], real[i]];
+                    [imaginary[i], imaginary[j]] = [imaginary[j], imaginary[i]];
+                }
+            }
+
+            for (let blockSize = 2; blockSize <= length; blockSize <<= 1) {
+                const angle = (-2 * Math.PI) / blockSize;
+                const stepReal = Math.cos(angle);
+                const stepImaginary = Math.sin(angle);
+                for (let block = 0; block < length; block += blockSize) {
+                    let twiddleReal = 1;
+                    let twiddleImaginary = 0;
+                    const halfBlock = blockSize >> 1;
+                    for (let offset = 0; offset < halfBlock; offset++) {
+                        const even = block + offset;
+                        const odd = even + halfBlock;
+                        const oddReal = real[odd] * twiddleReal - imaginary[odd] * twiddleImaginary;
+                        const oddImaginary = real[odd] * twiddleImaginary + imaginary[odd] * twiddleReal;
+                        real[odd] = real[even] - oddReal;
+                        imaginary[odd] = imaginary[even] - oddImaginary;
+                        real[even] += oddReal;
+                        imaginary[even] += oddImaginary;
+                        const nextTwiddleReal = twiddleReal * stepReal - twiddleImaginary * stepImaginary;
+                        twiddleImaginary = twiddleReal * stepImaginary + twiddleImaginary * stepReal;
+                        twiddleReal = nextTwiddleReal;
+                    }
+                }
+            }
+            const magnitudes = new Float32Array(length >> 1);
+            for (let bin = 0; bin < magnitudes.length; bin++) {
+                magnitudes[bin] = Math.hypot(real[bin], imaginary[bin]) / length;
+            }
+            return magnitudes;
+        }
+
+        function drawSpectrogram(audioBuffer) {
+            const canvas = document.getElementById('spectrogramCanvas');
+            const width = Math.max(1, canvas.clientWidth);
+            const height = Math.max(1, canvas.clientHeight);
+            const context = resizeAnalysisCanvas(canvas, width, height);
+            const samples = audioBuffer.getChannelData(0);
+            const fftSize = 1024;
+            const hopSize = 512;
+            const sampleRate = audioBuffer.sampleRate;
+            const maxFrequency = sampleRate / 2;
+            const bins = fftSize / 2;
+            const columns = Math.max(1, Math.min(600, Math.floor(width)));
+            const maxStart = Math.max(0, samples.length - fftSize);
+            const frequencyLimit = Math.min(20000, maxFrequency);
+            const maxBin = Math.max(1, Math.min(bins - 1, Math.floor((frequencyLimit / maxFrequency) * bins)));
+            let highBandEnergy = 0;
+            let highBandCount = 0;
+
+            context.fillStyle = '#07111d';
+            context.fillRect(0, 0, width, height);
+            for (let column = 0; column < columns; column++) {
+                const start = columns === 1 ? 0 : Math.floor((column / (columns - 1)) * maxStart);
+                const frame = new Float32Array(fftSize);
+                for (let sample = 0; sample < fftSize; sample++) {
+                    const hann = 0.5 * (1 - Math.cos((2 * Math.PI * sample) / (fftSize - 1)));
+                    frame[sample] = (samples[start + sample] || 0) * hann;
+                }
+                const magnitudes = calculateFftMagnitudes(frame);
+
+                for (let bin = 0; bin <= maxBin; bin++) {
+                    const magnitude = magnitudes[bin];
+                    const db = 20 * Math.log10(magnitude + 1e-7);
+                    const intensity = Math.max(0, Math.min(1, (db + 78) / 66));
+                    const y = height - ((bin + 1) / (maxBin + 1)) * height;
+                    const binFrequency = (bin / fftSize) * sampleRate;
+                    if (binFrequency >= 15000) {
+                        highBandEnergy += intensity;
+                        highBandCount++;
+                    }
+                    const hue = intensity > 0.72 ? 4 : 185 - intensity * 150;
+                    context.fillStyle = `hsla(${hue}, 95%, ${20 + intensity * 48}%, ${0.2 + intensity * 0.8})`;
+                    context.fillRect((column / columns) * width, y, Math.ceil(width / columns) + 1, Math.max(1, height / (maxBin + 1) + 1));
+                }
+            }
+
+            const has15kBand = sampleRate / 2 > 15000;
+            const averageHighBand = highBandCount ? highBandEnergy / highBandCount : 0;
+            const status = document.getElementById('audioAnalysisStatus');
+            const risk = document.getElementById('audioRiskStatus');
+            window.lastDecodedAudioBuffer = audioBuffer;
+            canvas.dataset.samplesRate = String(sampleRate);
+            status.textContent = `LOCAL FFT · ${sampleRate} Hz`;
+            document.getElementById('audioArtifactBadge').innerHTML = '<i class="fa-solid fa-circle text-[8px] mr-1"></i>LOCAL SPECTRUM READY';
+            document.getElementById('audioSummary').textContent = `本機 FFT 聲譜已完成（${audioBuffer.duration.toFixed(2)} 秒，${audioBuffer.numberOfChannels} 聲道）。此視覺化不會自行判定 AI 語音。`;
+            risk.textContent = has15kBand
+                ? `15 kHz+ 高頻帶平均能量 ${(averageHighBand * 100).toFixed(1)}% · 頻譜僅供檢視，不能單獨判定合成語音。`
+                : `取樣率 ${sampleRate} Hz 的 Nyquist 頻率低於 15 kHz，無法可靠檢視 15 kHz+ 高頻帶。`;
+        }
+
+        function redrawActiveAnalysis() {
+            const preview = document.getElementById('previewImg');
+            if (document.getElementById('visualTab').classList.contains('hidden') === false && preview.naturalWidth) {
+                detectFacesInImage(preview);
+            }
+            const audioCanvas = document.getElementById('spectrogramCanvas');
+            if (audioCanvas.dataset.samplesRate && window.lastDecodedAudioBuffer) {
+                drawSpectrogram(window.lastDecodedAudioBuffer);
+            }
+        }
+
+        function configureEdgeDetector() {
+            const script = document.querySelector('script[data-mediapipe-loader]');
+            if (window.FaceDetection || !script) return;
+            script.addEventListener('load', () => {
+                if (window.FaceDetection) return;
+                document.getElementById('faceDetectionStatus').textContent = 'EDGE AI · LIBRARY UNAVAILABLE';
+            }, { once: true });
+            script.addEventListener('error', () => {
+                document.getElementById('faceDetectionStatus').textContent = 'EDGE AI · OFFLINE';
+            }, { once: true });
+        }
+
+        async function decodeUploadedAudio(file) {
+            const status = document.getElementById('audioAnalysisStatus');
+            status.textContent = 'LOCAL AUDIO · DECODING';
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass) throw new Error('Web Audio API is unavailable in this browser.');
+            if (file.size > 40 * 1024 * 1024) throw new Error('Audio decoding is limited to 40 MB for browser memory safety.');
+            clearSpectrogram('正在本機解碼音訊…');
+            if (!audioContextInstance || audioContextInstance.state === 'closed') audioContextInstance = new AudioContextClass();
+            if (audioContextInstance.state === 'suspended') await audioContextInstance.resume();
+            const bytes = await file.arrayBuffer();
+            return audioContextInstance.decodeAudioData(bytes);
+        }
+
+        function openProTools() {
+            const panel = document.getElementById('proToolsPanel');
+            panel.classList.remove('translate-x-full');
+            panel.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeProTools() {
+            const panel = document.getElementById('proToolsPanel');
+            panel.classList.add('translate-x-full');
+            panel.setAttribute('aria-hidden', 'true');
+        }
+
+        function updateEvidenceDetail(button) {
+            const detail = document.getElementById('evidenceDetail');
+            detail.innerText = button.dataset.detail;
+            detail.classList.remove('hidden');
+        }
+
+        async function inspectMetadata(file) {
+            const extension = file.name.split('.').pop().toUpperCase();
+            const preview = await file.slice(0, 64).arrayBuffer();
+            const headerBytes = Array.from(new Uint8Array(preview)).slice(0, 16).map(byte => byte.toString(16).padStart(2, '0')).join(' ');
+            const hasExifMarker = extension === 'JPG' || extension === 'JPEG' || extension === 'PNG' || extension === 'WEBP'
+                ? headerBytes.toUpperCase().includes('FFE1') || headerBytes.toUpperCase().includes('E2')
+                : false;
+            const safeMetadata = {
+                format: extension,
+                size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+                modified: new Date(file.lastModified).toLocaleString('zh-TW'),
+                signature: hasExifMarker ? 'EXIF marker detected in the first 64 bytes.' : 'No EXIF marker detected in the inspected header.',
+                header: headerBytes
+            };
+            document.getElementById('metadataInspector').innerText = `HEX ${extension}: ${safeMetadata.signature} | size ${safeMetadata.size} | modified ${safeMetadata.modified} | ${safeMetadata.header}`;
+        }
+
+        async function getFileSha256(file) {
+            if (!window.crypto?.subtle || file.size > 32 * 1024 * 1024) return 'unavailable (browser or 32 MB safety limit)';
+            const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+            return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function getImageDimensions(file) {
+            if (!file.type || !file.type.startsWith('image/')) return '';
+            const tempUrl = URL.createObjectURL(file);
+            try {
+                const image = new Image();
+                image.src = tempUrl;
+                await image.decode();
+                return ` | Resolution: ${image.naturalWidth}x${image.naturalHeight}`;
+            } catch (error) {
+                return '';
+            } finally {
+                URL.revokeObjectURL(tempUrl);
+            }
+        }
+
+        function getFileCategory(file) {
+            const extension = file.name.split('.').pop().toLowerCase();
+            const mimeType = (file.type || '').toLowerCase();
+            const categories = {
+                image: { extensions: ['jpg', 'jpeg', 'png', 'webp'], tab: 'visualTab', icon: 'fa-file-image', color: 'text-cyan-400', label: 'IMAGE / 影像' },
+                video: { extensions: ['mp4', 'mov', 'avi'], tab: 'visualTab', icon: 'fa-file-video', color: 'text-purple-400', label: 'VIDEO / 影片' },
+                audio: { extensions: ['mp3', 'wav'], tab: 'audioTab', icon: 'fa-file-audio', color: 'text-emerald-400', label: 'AUDIO / 音訊' },
+                document: { extensions: ['pdf', 'docx', 'txt'], tab: 'textTab', icon: 'fa-file-lines', color: 'text-amber-400', label: 'DOCUMENT / 文件' }
+            };
+            return Object.values(categories).find(category => category.extensions.includes(extension)) || null;
+        }
+
+        async function createUploadData(file) {
+            if (file.size > 200 * 1024 * 1024) {
+                triggerToast('檔案超過 200MB 上限，請選擇較小的檔案。');
+                return null;
+            }
+
+            const category = getFileCategory(file);
+            if (!category) {
+                triggerToast('不支援此檔案格式。請上傳 JPG、PNG、WEBP、MP4、MOV、AVI、MP3、WAV、PDF、DOCX 或 TXT。');
+                return null;
+            }
+
+            const size = file.size < 1024 * 1024
+                ? `${(file.size / 1024).toFixed(1)} KB`
+                : `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+            const modified = file.lastModified ? new Date(file.lastModified).toLocaleString('zh-TW') : '未知';
+            const data = {
+                name: file.name,
+                type: category.label,
+                meta: `Size: ${size} | Format: ${file.type || file.name.split('.').pop().toUpperCase()} | Modified: ${modified}`,
+                score: (Math.random() * 30 + 65).toFixed(1),
+                verdict: 'AI 多維特徵檢核完畢',
+                icon: category.icon,
+                color: category.color,
+                tab: category.tab
+            };
+
+            if (category.label.startsWith('IMAGE')) {
+                if (uploadedPreviewUrl) URL.revokeObjectURL(uploadedPreviewUrl);
+                uploadedPreviewUrl = URL.createObjectURL(file);
+                data.previewUrl = uploadedPreviewUrl;
+            }
+
+            if (category.label.startsWith('AUDIO')) {
+                try {
+                    data.audioBuffer = await decodeUploadedAudio(file);
+                } catch (error) {
+                    document.getElementById('audioAnalysisStatus').textContent = 'LOCAL AUDIO · DECODE FAILED';
+                    document.getElementById('audioRiskStatus').textContent = `${error.message || '瀏覽器無法解碼此音訊。'} 原始音訊不會上傳。`;
+                    data.audioDecodeFailed = true;
+                }
+            }
+
+            try {
+                await inspectMetadata(file);
+            } catch (error) {
+                document.getElementById('metadataInspector').innerText = '無法讀取檔案標頭；檔案本身未上傳到伺服器。';
+            }
+            const [hash, dimensions] = await Promise.all([
+                getFileSha256(file).catch(() => 'unavailable'),
+                getImageDimensions(file)
+            ]);
+            data.meta += `${dimensions} | SHA-256: ${hash}`;
+            return data;
+        }
+
+        async function analyzeText() {
+            const input = document.getElementById('textAnalyzerInput');
+            const results = document.getElementById('textAnalysisResults');
+            const button = document.getElementById('analyzeTextBtn');
+            const text = input.value.trim();
+
+            if (!text) {
+                results.innerText = '請先貼上或輸入文字。';
+                return;
+            }
+
+            button.disabled = true;
+            button.innerText = '分析中...';
+            results.innerText = '正在提取語言模式、句子結構與 AI 生成特徵...';
+
+            try {
+                const result = await window.analysisApi.analyze({
+                    text,
+                    type: 'text',
+                    score: 76.5,
+                    model: selectedModel
+                });
+                const endpoint = document.getElementById('llmEndpointInput').value.trim();
+                let finalResult = result;
+                let analysisSource = 'LOCAL DEMO HEURISTIC';
+                if (endpoint) {
+                    const parsedEndpoint = new URL(endpoint, window.location.href);
+                    if (parsedEndpoint.protocol !== 'https:' && parsedEndpoint.hostname !== 'localhost') {
+                        throw new Error('LLM 代理必須使用 HTTPS（localhost 除外）。');
+                    }
+                    const response = await fetch(parsedEndpoint.href, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ text, model: selectedModel }),
+                        signal: AbortSignal.timeout(30000),
+                        credentials: 'omit',
+                        referrerPolicy: 'no-referrer'
+                    });
+                    if (!response.ok) throw new Error(`LLM 代理回應錯誤 (${response.status})`);
+                    const backendResult = await response.json();
+                    const probability = Number(backendResult.probability);
+                    if (!Number.isFinite(probability) || probability < 0 || probability > 100) {
+                        throw new Error('LLM 代理回傳格式錯誤：probability 須為 0–100。');
+                    }
+                    finalResult = { ...backendResult, score: probability };
+                    analysisSource = 'BACKEND LLM';
+                    document.getElementById('analysisApiStatus').innerText = 'BACKEND LLM CONNECTED';
+                } else {
+                    document.getElementById('analysisApiStatus').innerText = 'LOCAL DEMO HEURISTIC';
+                }
+
+                const probability = Math.min(100, Math.max(0, Math.round(Number(finalResult.probability ?? finalResult.score) || 0)));
+                const confidence = Number(finalResult.confidence);
+                const evidence = Array.isArray(finalResult.evidence) ? finalResult.evidence : [];
+                const sentenceHtml = evidence.slice(0, 8).map(item => {
+                    const sentence = typeof item.sentence === 'string' ? item.sentence : '';
+                    if (!sentence) return '';
+                    const safeSentence = sentence.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+                    const safeReason = typeof item.reason === 'string' ? item.reason.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]) : '模型標記句段';
+                    return `<li class="mb-1 rounded border border-red-400/20 bg-red-500/10 px-2 py-1"><span class="text-red-100">${safeSentence}</span><span class="block text-[9px] text-red-300/80">${safeReason}</span></li>`;
+                }).filter(Boolean).join('');
+                results.innerHTML = `<strong class="text-cyan-300">分析完成 · ${analysisSource}</strong><br>AI 生成機率：${probability}%${Number.isFinite(confidence) ? `<br>信任度：${Math.min(100, Math.max(0, confidence))}%` : ''}${sentenceHtml ? `<ul class="mt-2 list-none">${sentenceHtml}</ul>` : ''}<p class="mt-2 text-[9px] text-slate-500">AI 寫作偵測僅為估計，不能作為單獨的學術不端證據。</p>`;
+                triggerToast('文字分析完成，已更新即時標記。');
+            } catch (error) {
+                results.innerText = '文字分析失敗。請確認分析 API 是否已連接。';
+            } finally {
+                button.disabled = false;
+                button.innerText = '重新分析';
+            }
+        }
+
+        // UI Toast Notification helper
+        function triggerToast(message) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            toastMsg.innerText = message;
+
+            toast.classList.remove('opacity-0', 'translate-y-10', 'pointer-events-none');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-10', 'pointer-events-none');
+            }, 3000);
+        }
+
+        // Modal Handler
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.toggle('hidden');
+        }
+
+        // Download Report PDF Simulation
+        function downloadReport() {
+            triggerToast('正在導出 PDF 檢測報告 Certificate...');
+            setTimeout(() => {
+                alert('【OmniVerify AI 報告導出成功】\n\n檔名: OmniVerify_Report_2026.pdf\n數位簽章: SHA256-AUTHENTICATED\n防偽驗證碼: #99482-AI-CHECK');
+            }, 600);
+        }
+
+        // Liquid glass optics: adapt global tint, refraction blur, and saturation.
+        function initializeOpticsController() {
+            const opticsSlider = document.getElementById('opticsSlider');
+            if (!opticsSlider) return;
+
+            let glowTimeout = null;
+            const updateOptics = function() {
+                const value = Number.parseInt(opticsSlider.value, 10);
+                const opacity = 0.1 + (value / 100) * 0.8;
+                const blur = 4 + (value / 100) * 28;
+                const saturation = 100 + (value / 100) * 100;
+
+                document.documentElement.style.setProperty('--glass-opacity', opacity.toFixed(2));
+                document.documentElement.style.setProperty('--glass-blur', `${blur.toFixed(1)}px`);
+                document.documentElement.style.setProperty('--glass-saturate', `${saturation.toFixed(0)}%`);
+                document.body.style.textShadow = value < 30 ? '0 1px 3px rgba(0, 0, 0, 0.8)' : 'none';
+            };
+
+            opticsSlider.addEventListener('input', updateOptics);
+            opticsSlider.addEventListener('change', () => {
+                document.documentElement.style.setProperty('--liquid-glow', 'rgba(0, 242, 254, 0.15)');
+                clearTimeout(glowTimeout);
+                glowTimeout = setTimeout(() => {
+                    document.documentElement.style.setProperty('--liquid-glow', 'rgba(0, 242, 254, 0)');
+                }, 400);
+            });
+
+            updateOptics();
+        }
+
+        // Drag & Drop Setup
+        window.onload = function() {
+            initGaugeChart(0);
+            initializeOpticsController();
+            configureEdgeDetector();
+            document.querySelectorAll('button').forEach(button => button.classList.add('btn-liquid'));
+
+            const dropzone = document.getElementById('dropzone');
+            const fileInput = document.getElementById('fileInput');
+            const textAnalyzer = document.getElementById('textAnalyzerInput');
+
+            dropzone.addEventListener('click', event => {
+                if (event.target !== fileInput) fileInput.click();
+            });
+            document.getElementById('analyzeTextBtn').addEventListener('click', analyzeText);
+            textAnalyzer.addEventListener('input', () => {
+                document.getElementById('textAnalysisResults').innerText = '內容已修改，請點選「分析文字」更新結果。';
+            });
+
+            document.getElementById('openProToolsBtn').addEventListener('click', openProTools);
+            document.getElementById('closeProToolsBtn').addEventListener('click', closeProTools);
+            let canvasResizeFrame = null;
+            window.addEventListener('resize', () => {
+                cancelAnimationFrame(canvasResizeFrame);
+                canvasResizeFrame = requestAnimationFrame(redrawActiveAnalysis);
+            }, { passive: true });
+            document.getElementById('modelSelector').addEventListener('change', event => {
+                selectedModel = event.target.value;
+                document.getElementById('analysisApiStatus').innerText = `MODEL · ${selectedModel}`;
+            });
+            document.querySelectorAll('.evidenceTimelineItem').forEach(button => {
+                button.addEventListener('click', () => {
+                    document.querySelectorAll('.evidenceTimelineItem').forEach(item => item.classList.remove('border-brand-cyan', 'bg-brand-cyan/10'));
+                    button.classList.add('border-brand-cyan', 'bg-brand-cyan/10');
+                    updateEvidenceDetail(button);
+                });
+            });
+
+            dropzone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropzone.classList.add('border-brand-cyan', 'bg-slate-900/80');
+            });
+
+            dropzone.addEventListener('dragleave', () => {
+                dropzone.classList.remove('border-brand-cyan', 'bg-slate-900/80');
+            });
+
+            dropzone.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('border-brand-cyan', 'bg-slate-900/80');
+                if (e.dataTransfer.files.length > 0) {
+                    const file = e.dataTransfer.files[0];
+                    const customData = await createUploadData(file);
+                    if (customData) runScanSimulation(customData);
+                }
+            });
+
+            fileInput.addEventListener('change', async (e) => {
+                if (e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    const customData = await createUploadData(file);
+                    if (customData) runScanSimulation(customData);
+                    fileInput.value = '';
+                }
+            });
+        };
+    </script>
+</body>
+</html>
